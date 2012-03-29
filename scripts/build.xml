@@ -1,0 +1,262 @@
+<?xml version="1.0"?>
+
+<!-- build omniel -->
+<project name="${project.name}" basedir="." default="package">
+
+	<!-- set up a prefix for all environment variables -->
+  <property environment="env."/>
+
+	<!-- load properties for build and user specific values -->
+  <property file="scripts/user.properties"/>
+  <property file="scripts/build.properties"/>
+	
+	<!-- set path to flex sdk -->
+  <property name="FLEX_HOME" location="${env.FLEX_HOME}"/>
+	
+	<!-- menu for build options -->
+  <target name="usage">
+    <echo message=""/>
+    <echo message="available targets are (incremental in order):"/>
+    <echo message=""/>
+  	<echo message="clean         --&gt; remove all build folders"/>
+    <echo message="init          --&gt; create build folders"/>
+  	<echo message="compile       --&gt; build library swc"/>
+  	<echo message="asdoc         --&gt; generate documentation"/>
+  	<echo message="package       --&gt; add all files into release zip"/>
+    <echo message=""/>
+  </target>
+	
+	<!-- clean distribution/report folders -->
+  <target name="clean">
+  			
+    <echo>[clean] removing build/reporting directories</echo>
+    <delete includeemptydirs="true" failonerror="false">
+      
+    	<!-- remove reporting directory -->
+    	<fileset dir="${report.loc}" defaultexcludes="false">
+        <include name="**/*"/>
+      </fileset>
+    	
+    	<!-- remove distribution directory -->
+      <fileset dir="${dist.loc}" defaultexcludes="false">
+        <include name="**/*"/>
+      </fileset>
+    	
+     	<!-- remove library directory -->
+      <fileset dir="${lib.loc}" defaultexcludes="false">
+        <include name="**/*"/>
+      </fileset>
+	
+    </delete>
+    <echo>[clean] removed build/reporting directories</echo>
+  	
+  </target>
+	
+	<!-- create directories needed for the build process -->
+  <target name="init" depends="clean">
+  	
+    <echo>[init] creating package directories</echo>
+    
+   	<mkdir dir="${bin.loc}"/>
+    <mkdir dir="${report.loc}"/>  	
+  	<mkdir dir="${lib.loc}"/>
+  	
+  	<!-- harachel should be projects in the same workspace -->
+  	<copy file="../${omniel.name}/bin/${omniel.name.versioned}-release.swc" todir="${lib.loc}"/>
+  	<copy file="../${omniel.name}/bin/${omniel.name.versioned}-development.swc" todir="${lib.loc}"/>  	
+    <copy file="../${harachel.name}/bin/${harachel.name.versioned}.swc" todir="${lib.loc}"/>
+  	  	
+    <echo>[init] created package directories</echo>
+  	
+  </target>
+	
+	<!-- compile release swc -->
+  <target name="compile-development" depends="init">
+    
+  	<echo>[compile] compiling development swc</echo>
+    <echo>[compile] using flex sdk at: ${FLEX_HOME}</echo>
+  	
+  	<!-- set compilation application -->
+    <java jar="${FLEX_HOME}/lib/compc.jar" dir="${FLEX_HOME}/frameworks" fork="true" failonerror="true">
+
+    	<!-- debugging settings -->
+    	<arg value="-debug=true"/>
+    	<arg value="-optimize=false" />
+    	<arg value="-omit-trace-statements=false" />
+    	<arg value="-show-actionscript-warnings=true" />
+    	
+			<!-- activate development error checking for proper use of framework -->     	    
+    	<arg value="-define=OMNIEL::DEVELOPMENT,true"/>    	
+
+    	<!-- build the swc with version name included -->
+      <arg value="-output=${bin.loc}/${project.name.versioned}-development.swc"/>
+
+    	<!-- include all libraries we need -->
+      <arg value="-include-sources=${main.src.loc}/lib"/>
+
+    	<!-- include library swc files -->
+      <arg value="-library-path+=${lib.loc}"/>
+
+			<!-- build in code as we need it -->
+      <arg value="-incremental=true"/>
+    	
+    	<!-- compile everything in now -->
+      <arg value="-static-link-runtime-shared-libraries=true"/>
+    	
+    	<!-- tell everything -->
+      <arg value="-verbose-stacktraces=true"/>
+    	
+    	<!-- do not add server information to swcs -->
+      <arg value="-headless-server=true"/>
+    	
+    </java>
+    <echo>[compile] development swc ${project.name.versioned}-development.swc created successfully</echo>
+  	
+  </target>
+	
+	<!-- compile release swc -->
+  <target name="compile-release" depends="compile-development">
+    
+  	<echo>[compile] compiling release swc</echo>
+    <echo>[compile] using flex sdk at: ${FLEX_HOME}</echo>
+  	
+  	<!-- set compilation application -->
+    <java jar="${FLEX_HOME}/lib/compc.jar" dir="${FLEX_HOME}/frameworks" fork="true" failonerror="true">
+
+    	<!-- optimize release -->
+    	<arg value="-debug=false"/>
+     	<arg value="-optimize=true" />
+     	<arg value="-omit-trace-statements=true" />
+     	<arg value="-show-actionscript-warnings=false" />
+
+    	<!-- deactivate development error checking; application is tested and can run faster without development error tests -->    	
+    	<arg value="-define=OMNIEL::DEVELOPMENT,false"/>
+
+    	<!-- build the swc with version name included -->
+      <arg value="-output=${bin.loc}/${project.name.versioned}-release.swc"/>
+
+    	<!-- include all libraries we need -->
+      <arg value="-include-sources=${main.src.loc}/lib"/>
+
+    	<!-- include library swc files -->
+      <arg value="-library-path+=${lib.loc}"/>
+
+			<!-- build in code as we need it -->
+      <arg value="-incremental=true"/>
+    	
+    	<!-- compile everything in now -->
+      <arg value="-static-link-runtime-shared-libraries=true"/>
+    	
+    	<!-- tell everything -->
+      <arg value="-verbose-stacktraces=true"/>
+    	
+    	<!-- do not add server information to swcs -->
+      <arg value="-headless-server=true"/>
+    	
+    </java>
+    <echo>[compile] release swc ${project.name.versioned}-release.swc created successfully</echo>
+  	
+  </target>		
+	
+	<!-- build documentation -->
+  <target name="asdoc" depends="compile-release">
+  	
+    <echo>[asdoc] generating documentation</echo>
+    <tstamp>
+      <format property="docgen.time" pattern="MM/dd/yyyy hh:mm aa" unit="hour"/>
+    </tstamp>
+    
+  	<!-- set documentation application -->
+  	<java jar="${FLEX_HOME}/lib/asdoc.jar" dir="${FLEX_HOME}/frameworks" fork="true" failonerror="true">
+      
+  		<!-- connect libraries needed for documentation generation -->
+  		<arg line="-external-library-path+=${lib.loc}"/>
+      <arg line="-doc-sources+=${main.src.loc}"/>
+      <arg line="-source-path+=${main.src.loc}"/>
+      <arg line="-output ${doc.loc}"/>
+  		
+  		<!-- include any development code in documentation; that is when you need it! -->    	
+  		<arg value="-define=OMNIEL::DEVELOPMENT,true"/>
+  		
+  		<!-- set helpful properties to make process less restrictive, easier to pass asdoc requirements -->
+      <arg value="-keep-xml=true"/>
+      <arg value="-lenient=true"/>
+  		
+  		<!-- set information on html files -->
+      <arg line="-window-title '${project.name} ${project.version}'"/>
+      <arg line="-main-title '${project.name} ${project.version}'"/>
+      <arg line="-footer '${project.name} ${project.version} | ${project.site} | generated at: ${docgen.time}'"/>
+
+<!--  		
+  		<arg line="-package lib.omniel.engine	'links and engine components (all internal) are housed here'"/>
+-->
+  		
+    </java>
+    <echo>[asdoc] documentation generated successfully</echo>
+  	
+  </target>
+	
+	<!-- package final build -->
+  <target name="package" depends="asdoc">
+    
+  	<tstamp>
+      <format property="touch.time" pattern="MM/dd/yyyy hh:mm aa" unit="hour"/>
+    </tstamp>
+		
+    <echo>[package] packing release</echo>
+    
+  	<!-- make directories and copy essential swcs in -->
+  	<mkdir dir="${dist.loc}"/>
+    <mkdir dir="${dist.loc}/src"/>
+    <mkdir dir="${dist.loc}/libs"/>
+  	
+    <copy file="${bin.loc}/${project.name.versioned}-development.swc" todir="${dist.loc}/libs/"/>
+    <copy file="${bin.loc}/${project.name.versioned}-release.swc" todir="${dist.loc}/libs/"/>
+    <copy file="${lib.loc}/${omniel.name.versioned}-development.swc" todir="${dist.loc}/libs/"/>
+    <copy file="${lib.loc}/${omniel.name.versioned}-release.swc" todir="${dist.loc}/libs/"/>
+    <copy file="${lib.loc}/${harachel.name.versioned}.swc" todir="${dist.loc}/libs/"/>  	
+  	
+    <copy todir="${dist.loc}/src/lib">
+      <fileset dir="${main.src.loc}/lib"/>
+    </copy>
+    
+  	<copy todir="${dist.loc}/docs">
+      <fileset dir="${doc.loc}"/>
+    </copy>
+    
+  	<!-- erase temporary storage -->
+  	<delete dir="${dist.loc}/docs/tempdita"/>
+
+  	<!-- add documentation to swc for tooltips -->
+    <zip destfile="${dist.loc}/libs/${project.name.versioned}.swc" update="true">
+      <zipfileset dir="${doc.loc}/tempdita" prefix="docs">
+        <include name="*packages.dita*"/>
+        <include name="*lib.*"/>
+      </zipfileset>
+    </zip>
+
+		<!-- copy license -->
+    <copy file="${license}" tofile="${dist.loc}/${license}" overwrite="true"/>
+
+		<!-- copy readme -->
+    <copy file="${readme}" tofile="${dist.loc}/${readme}" overwrite="true"/>
+  	
+  	<!-- zip distribution -->
+    <zip destfile="${dist.loc}/${project.name.versioned}.zip">
+      <fileset dir="${dist.loc}"/>
+    </zip>
+  	
+		<!-- erase all files/folders we do not need  -->
+    <delete file="${dist.loc}/${project.name.versioned}-development.swc"/>
+    <delete file="${dist.loc}/${project.name.versioned}-release.swc"/>  	
+    <delete file="${dist.loc}/${readme}"/>
+    <delete file="${dist.loc}/${license}"/>
+  	<delete file="${dist.loc}/${changelog}"/>
+    <delete dir="${dist.loc}/src"/>
+    <delete dir="${dist.loc}/libs"/>
+    <delete dir="${dist.loc}/docs"/>
+    	
+    <echo>[package] release packaged successfully</echo>  	
+  </target>
+	
+</project>

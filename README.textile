@@ -1,0 +1,23 @@
+h2. Gradiel Load-Balancing Scheduler and Logic Processor
+
+* name | angel of intelligence
+* version | 0.1
+* site | http://www.omniel.net/gradiel.shtml
+* license | MIT License (see LICENSE file for more information)
+* description | ...pending
+
+h3. Installation
+
+...pending
+
+h3. Building
+
+...pending
+
+h3. Usage
+
+...pending
+
+h3. Developer(s)
+
+* "Michael Jaworski":http://github.com/mwjaworski at "Edora Films LLC":http://www.edorafilms.com
